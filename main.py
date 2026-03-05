@@ -16,7 +16,7 @@ if api_key:
         genai.configure(api_key=api_key)
         
         # PROBAR CON ESTE MODELO (es el más estándar actualmente)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
 
         # Selector de método para iPad
         opcion = st.radio("Selecciona cómo capturar:", ("Cámara", "Galería/Carrete"))
