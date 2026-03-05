@@ -4,40 +4,34 @@ from PIL import Image
 
 st.set_page_config(page_title="WorthIt", page_icon="🔍")
 
-# 1. Configuración ULTRA-ESTRICTA
+# Configurar la API
 try:
-    # Leemos la clave de tus Secrets
-    llave = st.secrets["GOOGLE_API_KEY"].strip() # .strip() quita espacios invisibles
-    genai.configure(api_key=llave)
-    
-    # FORZAMOS el nombre técnico completo del modelo
-    # En Europa a veces solo funciona con el prefijo 'models/'
-    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+    # El .strip() elimina cualquier espacio que se cuele al copiar
+    key = st.secrets["GOOGLE_API_KEY"].strip()
+    genai.configure(api_key=key)
+    # Forzamos el modelo más nuevo
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error(f"Error de configuración: {e}")
+    st.error(f"Error con la llave: {e}")
 
 st.title("🔍 WorthIt")
 
-# 2. El botón que querías (Menú nativo de Apple)
-img_file = st.file_uploader("📸 TOCA AQUÍ PARA HACER FOTO", type=['jpg', 'png', 'jpeg'])
+# Subida de imagen nativa (Apple Style)
+img_file = st.file_uploader("📸 TOCA PARA HACER FOTO O SUBIR", type=['jpg', 'jpeg', 'png'])
 
 if img_file:
     img = Image.open(img_file)
     st.image(img, use_container_width=True)
     
     if st.button("💰 ¿CUÁNTO VALE?"):
-        with st.spinner("Analizando..."):
+        with st.spinner("Consultando a la IA..."):
             try:
-                # Prompt directo
-                prompt = "Identifica este objeto y dime su precio de segunda mano en euros. Sé muy breve."
+                # El comando para la IA
+                response = model.generate_content(["Dime qué es este objeto y su precio aproximado de segunda mano en euros. Sé muy breve.", img])
                 
-                # Llamada directa
-                response = model.generate_content([prompt, img])
-                
-                if response:
-                    st.success("¡Resultado!")
+                if response.text:
+                    st.success("¡Hecho!")
                     st.write(response.text)
             except Exception as e:
-                # Si esto falla, el error que salga aquí nos dirá la verdad absoluta
                 st.error(f"Error de Google: {e}")
-                st.info("Si pone 'User location not supported', avísame, es un ajuste regional.")
+                st.info("Si pone 'API_KEY_INVALID', es que la nueva llave aún no se ha guardado bien.")
