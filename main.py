@@ -4,20 +4,18 @@ from PIL import Image
 
 st.set_page_config(page_title="WorthIt", page_icon="🔍")
 
-# Intentamos conectar de forma robusta
-try:
-    key = st.secrets["GOOGLE_API_KEY"].strip()
-    genai.configure(api_key=key)
-    
-    # Probamos con el nombre técnico exacto que Google pide ahora
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
-except Exception as e:
-    st.error("Error de configuración inicial.")
+# 1. Configuración ultra-limpia
+if "GOOGLE_API_KEY" not in st.secrets:
+    st.error("🚨 LA LLAVE NO ESTÁ EN SECRETS. Ve a Settings -> Secrets y ponla.")
+    st.stop()
+
+api_key = st.secrets["GOOGLE_API_KEY"].strip()
+genai.configure(api_key=api_key)
 
 st.title("🔍 WorthIt")
 
-# Subida nativa de Apple
-img_file = st.file_uploader("📸 TOCA PARA HACER FOTO O SUBIR", type=['jpg', 'jpeg', 'png'])
+# 2. Selector de modelo automático (Para matar el 404)
+img_file = st.file_uploader("📸 HAZ LA FOTO", type=['jpg', 'jpeg', 'png'])
 
 if img_file:
     img = Image.open(img_file)
@@ -25,24 +23,22 @@ if img_file:
     
     if st.button("💰 ¿CUÁNTO VALE?"):
         with st.spinner("Analizando..."):
+            # INTENTO 1: Modelo estándar
             try:
-                # El comando
-                response = model.generate_content([
-                    "Identifica este objeto y dime su precio de segunda mano en España. Sé muy breve.", 
-                    img
-                ])
-                
-                if response:
-                    st.success("¡Tasación lista!")
-                    st.write(response.text)
-            except Exception as e:
-                # Si esto da 404, probamos el modelo alternativo automáticamente
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(["¿Qué es esto y cuánto vale? Sé breve", img])
+                st.success("¡FUNCIONA!")
+                st.write(response.text)
+            except Exception as e1:
+                # INTENTO 2: Si el 1 da 404, probamos el nombre largo
                 try:
-                    alt_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                    response = alt_model.generate_content(["¿Qué es esto y precio?", img])
+                    model_alt = genai.GenerativeModel('models/gemini-1.5-flash')
+                    response = model_alt.generate_content(["¿Qué es esto y cuánto vale?", img])
+                    st.success("¡FUNCIONA (Vía alternativa)!")
                     st.write(response.text)
-                except:
-                    st.error(f"Error técnico de Google: {e}")
-                    st.info("Si el error persiste, comprueba que has aceptado los términos en Google AI Studio.")
-
-st.caption("Si sale error 404, prueba a refrescar el navegador del iPad una vez.")
+                except Exception as e2:
+                    # SI TODO FALLA, ESCUPIMOS EL ERROR REAL
+                    st.error("🔴 SIGUE DANDO ERROR")
+                    st.warning(f"Error 1: {e1}")
+                    st.warning(f"Error 2: {e2}")
+                    st.info("Si el error dice 'User location not supported', es que España está bloqueada temporalmente en tu cuenta de Google.")
