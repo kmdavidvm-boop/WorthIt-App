@@ -5,50 +5,51 @@ import io
 
 st.set_page_config(page_title="WorthIt", page_icon="🔍")
 
-# Configuración de seguridad para evitar bloqueos en Europa
-safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+# Lista de posibles nombres del modelo (el 404 suele ser por esto)
+MODELOS_A_PROBAR = [
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
+    'models/gemini-1.5-flash',
+    'gemini-pro-vision'
 ]
 
-try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    # Forzamos la versión 1.5-flash que es la más estable
-    model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
-        safety_settings=safety_settings
-    )
-except:
-    st.error("Error en la configuración de la API Key.")
+def configurar_modelo(api_key):
+    genai.configure(api_key=api_key)
+    for nombre in MODELOS_A_PROBAR:
+        try:
+            m = genai.GenerativeModel(nombre)
+            # Prueba rápida para ver si el modelo existe
+            m.generate_content("hola") 
+            return m, nombre
+        except:
+            continue
+    return None, None
 
 st.title("🔍 WorthIt")
 
+try:
+    key = st.secrets["GOOGLE_API_KEY"]
+    model, modelo_funcional = configurar_modelo(key)
+    
+    if model:
+        st.sidebar.success(f"Conectado: {modelo_funcional}")
+    else:
+        st.error("No se encontró un modelo compatible. Revisa tu API Key.")
+except Exception as e:
+    st.error(f"Error crítico: {e}")
+
 img_file = st.file_uploader("📸 TOCA AQUÍ PARA EMPEZAR", type=['jpg', 'png', 'jpeg'])
 
-if img_file:
+if img_file and model:
     img = Image.open(img_file)
-    # Miniatura muy pequeña para que no haya lag
-    img.thumbnail((400, 400))
-    st.image(img, caption="Imagen lista")
+    img.thumbnail((500, 500))
+    st.image(img)
     
     if st.button("💰 ¿CUÁNTO VALE?"):
-        with st.spinner("Conectando con el servidor..."):
+        with st.spinner("Analizando..."):
             try:
-                # Prompt directo y sencillo
-                prompt = "Identifica el objeto de la imagen. Dime su nombre y su precio estimado en euros en el mercado de segunda mano. Sé breve."
-                
-                # Ejecutar con timeout implícito
+                prompt = "Identifica este objeto, su precio de segunda mano en euros y una curiosidad. Sé breve."
                 response = model.generate_content([prompt, img])
-                
-                if response:
-                    st.subheader("Resultado:")
-                    st.write(response.text)
-                else:
-                    st.error("No hay respuesta del servidor.")
+                st.write(response.text)
             except Exception as e:
-                # ESTO ES LO MÁS IMPORTANTE: Si falla, nos dirá el CÓDIGO de error
-                st.error(f"Error detectado: {e}")
-                if "finish_reason" in str(e):
-                    st.warning("La IA bloqueó la imagen por seguridad. Intenta con otra foto.")
+                st.error(f"Error al analizar: {e}")
