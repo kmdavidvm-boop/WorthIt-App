@@ -1,43 +1,44 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+import io
 
-# 1. Configuración rápida
 st.set_page_config(page_title="WorthIt", page_icon="🔍")
 
-# 2. Conexión (Asegúrate de que GOOGLE_API_KEY esté en Secrets)
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
     model = genai.GenerativeModel('gemini-1.5-flash')
-except Exception as e:
-    st.error("Error de configuración.")
+except:
+    st.error("Error en la configuración de la llave.")
 
 st.title("🔍 WorthIt")
 
-# 3. Cargador de archivos
-img_file = st.file_uploader("📸 TOCA AQUÍ PARA BUSCAR PRECIO", type=['jpg', 'png', 'jpeg'])
+img_file = st.file_uploader("📸 TOCA AQUÍ PARA EMPEZAR", type=['jpg', 'png', 'jpeg'])
 
 if img_file:
-    # Mostramos miniatura rápida
+    # Procesamos la imagen para que pese MUCHO menos
     img = Image.open(img_file)
-    st.image(img, use_container_width=True)
     
-    # Botón de acción
-    if st.button("💰 ANALIZAR AHORA"):
-        with st.spinner("Conectando con Google..."):
+    # Reducir tamaño a 500px (suficiente para la IA)
+    img.thumbnail((500, 500))
+    
+    st.image(img, caption="Imagen optimizada")
+    
+    if st.button("💰 ¿CUÁNTO VALE?"):
+        with st.spinner("Analizando..."):
             try:
-                # ENVIAR DIRECTAMENTE (Sin procesamientos extra que den lag)
-                prompt = "Dime qué es esto, su precio de segunda mano en euros y una curiosidad. Sé muy breve."
+                # Convertimos la imagen a un formato ultraligero
+                buf = io.BytesIO()
+                img.save(buf, format='JPEG', quality=70)
+                byte_im = buf.getvalue()
                 
-                # Esta es la forma más estable de enviar archivos en Streamlit
-                response = model.generate_content([prompt, img])
+                # Enviamos los bytes directamente
+                response = model.generate_content([
+                    "Identifica este objeto. Dime nombre, precio aproximado de segunda mano y una curiosidad. Sé muy breve.",
+                    {"mime_type": "image/jpeg", "data": byte_im}
+                ])
                 
-                if response:
-                    st.subheader("Resultado:")
-                    st.write(response.text)
-                else:
-                    st.error("Google no respondió. Intenta otra vez.")
-            
+                st.subheader("Resultado:")
+                st.write(response.text)
             except Exception as e:
-                st.error(f"Error técnico: {e}")
-                st.info("Si el error persiste, revisa que tu API Key sea válida.")
+                st.error(f"Error: {e}")
