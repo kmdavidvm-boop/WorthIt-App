@@ -5,40 +5,50 @@ import io
 
 st.set_page_config(page_title="WorthIt", page_icon="🔍")
 
+# Configuración de seguridad para evitar bloqueos en Europa
+safety_settings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+]
+
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Forzamos la versión 1.5-flash que es la más estable
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash',
+        safety_settings=safety_settings
+    )
 except:
-    st.error("Error en la configuración de la llave.")
+    st.error("Error en la configuración de la API Key.")
 
 st.title("🔍 WorthIt")
 
 img_file = st.file_uploader("📸 TOCA AQUÍ PARA EMPEZAR", type=['jpg', 'png', 'jpeg'])
 
 if img_file:
-    # Procesamos la imagen para que pese MUCHO menos
     img = Image.open(img_file)
-    
-    # Reducir tamaño a 500px (suficiente para la IA)
-    img.thumbnail((500, 500))
-    
-    st.image(img, caption="Imagen optimizada")
+    # Miniatura muy pequeña para que no haya lag
+    img.thumbnail((400, 400))
+    st.image(img, caption="Imagen lista")
     
     if st.button("💰 ¿CUÁNTO VALE?"):
-        with st.spinner("Analizando..."):
+        with st.spinner("Conectando con el servidor..."):
             try:
-                # Convertimos la imagen a un formato ultraligero
-                buf = io.BytesIO()
-                img.save(buf, format='JPEG', quality=70)
-                byte_im = buf.getvalue()
+                # Prompt directo y sencillo
+                prompt = "Identifica el objeto de la imagen. Dime su nombre y su precio estimado en euros en el mercado de segunda mano. Sé breve."
                 
-                # Enviamos los bytes directamente
-                response = model.generate_content([
-                    "Identifica este objeto. Dime nombre, precio aproximado de segunda mano y una curiosidad. Sé muy breve.",
-                    {"mime_type": "image/jpeg", "data": byte_im}
-                ])
+                # Ejecutar con timeout implícito
+                response = model.generate_content([prompt, img])
                 
-                st.subheader("Resultado:")
-                st.write(response.text)
+                if response:
+                    st.subheader("Resultado:")
+                    st.write(response.text)
+                else:
+                    st.error("No hay respuesta del servidor.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                # ESTO ES LO MÁS IMPORTANTE: Si falla, nos dirá el CÓDIGO de error
+                st.error(f"Error detectado: {e}")
+                if "finish_reason" in str(e):
+                    st.warning("La IA bloqueó la imagen por seguridad. Intenta con otra foto.")
