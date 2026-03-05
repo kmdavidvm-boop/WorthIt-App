@@ -2,6 +2,28 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
+# Configuración con icono de lupa
+st.set_page_config(
+    page_title="WorthIt", 
+    page_icon="🔍", 
+    layout="centered"
+)
+
+# Estética de la App
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f0f2f6;
+    }
+    stButton>button {
+        width: 100%;
+        border-radius: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# El resto del código que ya tienes...
+
 # Configuramos la llave desde los Secretos de Streamlit
 api_key = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=api_key)
