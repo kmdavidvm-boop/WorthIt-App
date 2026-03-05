@@ -2,44 +2,31 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# Configuración de la página
-st.set_page_config(page_title="WorthIt - ¿Cuánto vale?", layout="centered")
+st.set_page_config(page_title="WorthIt", layout="centered")
 
 st.title("🔍 WorthIt")
-st.write("Apunta con la cámara trasera a un objeto para saber su valor.")
 
-# Barra lateral para la API Key
-api_key = st.sidebar.text_input("Pega aquí tu API Key de Google", type="password")
+api_key = st.sidebar.text_input("API Key de Google", type="password")
 
 if api_key:
     try:
         genai.configure(api_key=api_key)
-        # Usamos gemini-1.5-flash que es el más rápido y compatible
         model = genai.GenerativeModel('gemini-1.5-flash')
 
-        # Cámara configurada para usar la trasera (facing_mode="environment")
-        img_file = st.camera_input("Captura el objeto", facing_mode="environment")
+        # Quitamos el facing_mode para evitar el error de versión
+        img_file = st.camera_input("Captura el objeto")
 
         if img_file:
             img = Image.open(img_file)
-            st.image(img, caption="Analizando...", use_container_width=True)
+            st.image(img, use_container_width=True)
             
-            prompt = """
-            Identifica este objeto de la foto. 
-            Responde con este formato:
-            - **Nombre:** [Nombre del objeto]
-            - **Valor estimado:** [Rango de precio en euros/dólares]
-            - **Curiosidad:** [Un dato interesante corto]
-            - **Dónde encontrarlo:** [Nombres de tiendas o plataformas]
-            """
+            prompt = "Identifica este objeto. Dime su nombre, precio aproximado de mercado y un dato curioso."
             
-            with st.spinner("La IA está pensando..."):
-                # Enviamos la imagen y el texto
+            with st.spinner("Analizando..."):
                 response = model.generate_content([prompt, img])
-                st.subheader("Resultado:")
                 st.write(response.text)
                 
     except Exception as e:
-        st.error(f"Hubo un error: {e}")
+        st.error(f"Error: {e}")
 else:
-    st.warning("👈 Introduce tu API Key en la barra lateral para empezar.")
+    st.info("Introduce tu API Key en el menú de la izquierda.")
