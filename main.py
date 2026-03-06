@@ -2,56 +2,48 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-st.set_page_config(page_title="WorthIt", page_icon="💰")
+# Configuración inicial
+st.set_page_config(page_title="WorthIt", layout="wide")
 
-# --- Lógica de Estado ---
-if 'total_valor' not in st.session_state: st.session_state.total_valor = 0
-if 'historial' not in st.session_state: st.session_state.historial = []
-
-# --- Configuración IA ---
-try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except: st.error("Error de configuración.")
-
-# --- CSS para el estilo Apple ---
+# CSS para el diseño estilo iOS (Tarjetas, sombras y colores)
 st.markdown("""
     <style>
-    .big-font { font-size:40px !important; font-weight: bold; color: #007AFF; }
-    .stButton>button { border-radius: 50%; width: 60px; height: 60px; }
+    .card { background: #FFFFFF; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .big-price { font-size: 32px; font-weight: 800; color: #007AFF; }
+    .nav-bar { position: fixed; bottom: 0; width: 100%; background: #F8F9FA; padding: 15px; display: flex; justify-content: space-around; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Interfaz Principal ---
-st.title("🍎 WorthIt")
+# Lógica de Estado
+if 'total' not in st.session_state: st.session_state.total = 1235
+if 'historial' not in st.session_state: st.session_state.historial = []
 
-# Contador superior
-st.markdown(f"### Total Acumulado")
-st.markdown(f'<p class="big-font">€{st.session_state.total_valor}</p>', unsafe_allow_html=True)
+# Header
+st.markdown("## 🍎 WorthIt")
+st.markdown(f'<div class="card"><p>Total Acumulado</p><p class="big-price">€{st.session_state.total}</p></div>', unsafe_allow_html=True)
 
-# Historial reciente
+# Columnas tipo Apple (Current Value y Last Appraisal)
+col1, col2 = st.columns(2)
+with col1: st.markdown('<div class="card"><b>Current Value</b><br>€450</div>', unsafe_allow_html=True)
+with col2: st.markdown('<div class="card"><b>Last Appraisal</b><br>€85</div>', unsafe_allow_html=True)
+
+st.write("---")
 st.subheader("Recently Valued")
-for item in reversed(st.session_state.historial):
-    st.info(f"**{item['nombre']}**: €{item['precio']}")
 
-# --- El botón "+" para añadir ---
-if st.button("➕"):
-    st.session_state.modo_carga = True
+# Historial (donde aparecerán los objetos)
+for item in st.session_state.historial:
+    st.write(f"✅ {item['nombre']} - €{item['precio']}")
 
-if 'modo_carga' in st.session_state and st.session_state.modo_carga:
-    img_file = st.file_uploader("Sube foto del objeto", type=['jpg', 'jpeg', 'png'])
-    if img_file:
-        img = Image.open(img_file)
-        if st.button("Analizar"):
-            with st.spinner("Tasando..."):
-                # Aquí la IA procesa y nos da un precio numérico
-                # (Nota: En un caso real, necesitarías procesar la respuesta para extraer el número)
-                response = model.generate_content(["Dame solo el nombre del objeto y su precio en números, separados por una coma.", img])
-                data = response.text.split(',')
-                nombre = data[0]
-                precio = int(''.join(filter(str.isdigit, data[1])))
-                
-                st.session_state.total_valor += precio
-                st.session_state.historial.append({'nombre': nombre, 'precio': precio})
-                st.session_state.modo_carga = False
-                st.rerun()
+# Botón "+" flotante (simulado abajo)
+st.markdown("<br><br>", unsafe_allow_html=True)
+if st.button("➕ Añadir nuevo objeto"):
+    st.session_state.adding = True
+
+if 'adding' in st.session_state:
+    archivo = st.file_uploader("Sube una foto", type=['jpg', 'png'])
+    if archivo:
+        st.image(archivo, use_container_width=True)
+        if st.button("Analizar ahora"):
+            # Aquí iría la lógica de tu modelo
+            st.session_state.total += 200 # Ejemplo de suma
+            st.rerun()
