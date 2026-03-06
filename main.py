@@ -2,76 +2,56 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# Configuración Apple-Style
-st.set_page_config(page_title="WorthIt", page_icon="🔍", layout="centered")
+st.set_page_config(page_title="WorthIt", page_icon="💰")
 
-# Estilos CSS para botones más elegantes
+# --- Lógica de Estado ---
+if 'total_valor' not in st.session_state: st.session_state.total_valor = 0
+if 'historial' not in st.session_state: st.session_state.historial = []
+
+# --- Configuración IA ---
+try:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"].strip())
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except: st.error("Error de configuración.")
+
+# --- CSS para el estilo Apple ---
 st.markdown("""
     <style>
-    .stButton>button {
-        background-color: #007AFF;
-        color: white;
-        border-radius: 20px;
-        border: none;
-        padding: 10px 25px;
-        font-weight: 600;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #005bb5;
-    }
+    .big-font { font-size:40px !important; font-weight: bold; color: #007AFF; }
+    .stButton>button { border-radius: 50%; width: 60px; height: 60px; }
     </style>
 """, unsafe_allow_html=True)
 
-# Lógica de conexión
-try:
-    api_key = st.secrets["GOOGLE_API_KEY"].strip()
-    genai.configure(api_key=api_key)
-    def get_model():
-        models = genai.list_models()
-        for m in models:
-            if 'generateContent' in m.supported_generation_methods and ('1.5' in m.name):
-                return genai.GenerativeModel(m.name)
-        return None
-    model = get_model()
-except:
-    st.error("Error de conexión")
+# --- Interfaz Principal ---
+st.title("🍎 WorthIt")
 
-# MENÚ DESPLEGABLE (Sidebar / Tres rayas)
-with st.sidebar:
-    st.title("WorthIt")
-    opcion = st.radio("Navegación", ["🔍 Buscador", "ℹ️ Sobre"])
+# Contador superior
+st.markdown(f"### Total Acumulado")
+st.markdown(f'<p class="big-font">€{st.session_state.total_valor}</p>', unsafe_allow_html=True)
 
-# LÓGICA DE LAS OPCIONES
-if opcion == "🔍 Buscador":
-    st.title("¿Qué tienes ahí?")
-    st.write("Sube una foto y deja que la IA valore tu objeto.")
-    
-    img_file = st.file_uploader("", type=['jpg', 'jpeg', 'png'])
-    
+# Historial reciente
+st.subheader("Recently Valued")
+for item in reversed(st.session_state.historial):
+    st.info(f"**{item['nombre']}**: €{item['precio']}")
+
+# --- El botón "+" para añadir ---
+if st.button("➕"):
+    st.session_state.modo_carga = True
+
+if 'modo_carga' in st.session_state and st.session_state.modo_carga:
+    img_file = st.file_uploader("Sube foto del objeto", type=['jpg', 'jpeg', 'png'])
     if img_file:
         img = Image.open(img_file)
-        st.image(img, use_container_width=True)
-        
-        if st.button("Buscar"): # Botón rediseñado con CSS
-            with st.spinner("Analizando..."):
-                try:
-                    response = model.generate_content(["Identifica este objeto y dame su precio de segunda mano en euros. Sé breve y directo.", img])
-                    st.markdown("### Resultado")
-                    st.write(response.text)
-                except Exception as e:
-                    st.error("Error al conectar con la IA.")
-
-elif opcion == "ℹ️ Sobre":
-    st.title("ℹ️ Sobre WorthIt")
-    st.write("""
-    **¿Cómo funciona?**
-    WorthIt utiliza Inteligencia Artificial de última generación para analizar visualmente tus objetos.
-    
-    **¿Para qué sirve?**
-    * Identificar objetos antiguos o desconocidos.
-    * Obtener una estimación rápida del valor de mercado de segunda mano.
-    * Aprender curiosidades sobre tus pertenencias.
-    
-    *Creado para dar una segunda vida a lo que ya tienes.*
-    """)
+        if st.button("Analizar"):
+            with st.spinner("Tasando..."):
+                # Aquí la IA procesa y nos da un precio numérico
+                # (Nota: En un caso real, necesitarías procesar la respuesta para extraer el número)
+                response = model.generate_content(["Dame solo el nombre del objeto y su precio en números, separados por una coma.", img])
+                data = response.text.split(',')
+                nombre = data[0]
+                precio = int(''.join(filter(str.isdigit, data[1])))
+                
+                st.session_state.total_valor += precio
+                st.session_state.historial.append({'nombre': nombre, 'precio': precio})
+                st.session_state.modo_carga = False
+                st.rerun()
